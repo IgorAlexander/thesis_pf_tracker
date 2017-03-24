@@ -87,6 +87,8 @@ while True:
 		cv2.CHAIN_APPROX_SIMPLE)[-2]
 	center = None
 
+	pparticles_arr = []
+
 	# only proceed if at least one contour was found
 	if len(cnts) > 0:
 		# find the largest contour in the mask, then use
@@ -108,12 +110,17 @@ while True:
 				if first_frame:
 					tracks_arr.append(pf.Track(center[1], center[0]))
 
+				pparticles_arr.extend(pf.findInnerParticles(particles_matrix, x, y, w, h))
+
 				cv2.rectangle(frame, (int(x), int(y)), (int(x)+int(w), int(y)+int(h)),
 					(0, 255, 255), 2)
 				cv2.circle(frame, center, 2, (0, 0, 255), -1)
 
 		first_frame = False
 
+	pparticles_set = set(pparticles_arr)
+
+	pf.draw_pos_particles(frame, pparticles_set)
 	# pf.draw_particles(frame, particles_matrix)
 	pf.draw_tracks(frame, tracks_arr)
 	# show the frame to our screen

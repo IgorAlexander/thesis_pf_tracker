@@ -47,3 +47,25 @@ def draw_particles(frame, particles_matrix):
 def draw_tracks(frame, tracks_arr):
 	for track in tracks_arr:
 		cv2.circle(frame, (track.x, track.y), 2, (255, 0, 0), -1)
+
+#Draw positive particles
+def draw_pos_particles(frame, pparticles_set):
+	for particle in pparticles_set:
+		cv2.circle(frame, (particle.x, particle.y), 1, (0, 255, 0), -1)
+
+def findInnerParticles(particles_matrix, x, y, w, h):
+	rows, columns = particles_matrix.shape
+
+	xi_p = (x + _BOX_WIDTH - 1) //_BOX_WIDTH
+	yi_p = y //_BOX_HEIGHT
+	xf_p = (x + w) //_BOX_WIDTH
+	yf_p = (y + h) //_BOX_HEIGHT - 1
+
+	inner_particles = []
+	
+	for i in range(yi_p, yf_p + 1):
+		for j in range(xi_p, xf_p + 1):
+			if 0 <= i < rows and 0 <= j < columns:
+				inner_particles.append(particles_matrix[i,j])
+
+	return inner_particles
