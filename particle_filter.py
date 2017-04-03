@@ -6,7 +6,7 @@ import math
 import cv2
 
 # Particle's box size
-_BOX_WIDTH = 4
+_BOX_WIDTH = 3
 _BOX_HEIGHT = 6
 
 # numbers of bins per channel
@@ -15,7 +15,9 @@ _CS = 5
 _CV = 5
 
 # max distance between a track and particle
-_R_MAX = 4
+_R_MAX = 12
+
+_SHOULDER_WIDTH = 1
 
 class Particle:
 
@@ -133,10 +135,18 @@ def calcColorProb(frame, s_temp, x_temp):
 
 def calcMotionProb(frame, s_temp, x_temp):
 	
-	std_dev = 0.5
+	std_dev = 5
 	dist.euclidean(x_temp.p, s_temp.q)
 
 	first_factor = 1 / (std_dev * (math.pi**(0.5)))
 	second_factor = math.exp(-1 * (dist.euclidean(s_temp.q, x_temp.p)**2) / (std_dev**2))
 
 	return first_factor * second_factor
+
+def dict_normalize(d):
+	norm_d = {}
+	factor = 1.0 / sum(d.itervalues())
+	for key in d:
+		norm_d[key] = d[key] * factor
+
+	return norm_d

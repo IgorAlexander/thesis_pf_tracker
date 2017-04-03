@@ -131,7 +131,14 @@ while True:
 	f = {}
 	p = {}
 
+	for s_temp in pparticles_set:
+		g[s_temp] = []
+
 	for x_temp in tracks_arr:
+		f[x_temp] = []
+
+	for x_temp in tracks_arr:
+
 		# Kalman filter prediction
 		for s_temp in pparticles_set:
 			if s_temp.isNearby(x_temp):
@@ -140,8 +147,40 @@ while True:
 				p_motion = pf.calcMotionProb(frame, s_temp, x_temp)
 				p[(s_temp, x_temp)] = p_color * p_motion
 
-				f[x_temp] = s_temp
-				g[s_temp] = x_temp
+				f[x_temp].append(s_temp)
+				g[s_temp].append(x_temp)
+
+	for s_temp in pparticles_set:
+		if len(g[s_temp]) > 0:
+			w_s = {}
+			for x_temp in g[s_temp]:
+				w_s[x_temp] = p[(s_temp, x_temp)]
+			w_s_max = max(w_s.values())
+			for x_temp in g[s_temp]:
+				if w_s[x_temp] == w_s_max:
+					p[(s_temp, x_temp)] = p[(s_temp, x_temp)] * w_s[x_temp]
+				else:
+					f[x_temp].remove(s_temp)
+
+	for x_temp in tracks_arr:
+		if len(f[x_temp]) > 0:
+			weights = {}
+			for s_temp in f[x_temp]:
+				weights[s_temp] = p[(s_temp, x_temp)]
+			
+			weights = pf.dict_normalize(weights)
+			p_obs = (0,0)
+			for s_temp in f[x_temp]:
+				p_obs = tuple([(p_obs[i] + weights[s_temp]*s_temp.q[i]) for i in range(2)])
+
+			x_noise = np.random.normal(0, pf._SHOULDER_WIDTH / 2.0)
+			y_noise = np.random.normal(0, pf._SHOULDER_WIDTH)
+
+			old_p = (x_temp.p[0], x_temp.p[1])			
+			
+			x_temp.p = (int(round(p_obs[0] + x_noise)), int(round(p_obs[1] + y_noise)))
+
+			print str(old_p) + "vs" + str(x_temp.p)
 
 	pf.draw_pos_particles(frame, pparticles_set)
 	# pf.draw_particles(frame, particles_matrix)
