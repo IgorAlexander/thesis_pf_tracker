@@ -89,11 +89,13 @@ while True:
 
 	pparticles_arr = []
 
+
 	# only proceed if at least one contour was found
 	if len(cnts) > 0:
 		# find the largest contour in the mask, then use
 		# it to compute the minimum enclosing circle and
 		# centroid
+		player_count = 0
 		for cnt in cnts:
 
 			x,y,w,h = cv2.boundingRect(cnt)
@@ -108,7 +110,10 @@ while True:
 
 				# Init tracks
 				if first_frame:
-					tracks_arr.append(pf.Track(center[1], center[0]))
+					track_tmp = pf.Track(center[1], center[0])
+					track_tmp.assignRefHistogram(frame, x, y, w, h, player_count)
+					tracks_arr.append(track_tmp)
+					player_count = player_count + 1
 
 				pparticles_arr.extend(pf.findInnerParticles(particles_matrix, x, y, w, h))
 
@@ -120,9 +125,25 @@ while True:
 
 	pparticles_set = set(pparticles_arr)
 
+	# Iteration of the particle filter model
+
+	g = {}
+	f = {}
+	p_color = {}
+
+	for x_temp in tracks_arr:
+		# Kalman filter prediction
+		for s_temp in pparticles_set:
+			if s_temp.isNearby(x_temp):
+				p_color[(s_temp, x_temp)] = pf.calcColorProb(frame, s_temp, x_temp)
+				print p_color[(s_temp, x_temp)]
+
+				f[x_temp] = s_temp
+				g[s_temp] = x_temp
+
 	pf.draw_pos_particles(frame, pparticles_set)
 	# pf.draw_particles(frame, particles_matrix)
-	pf.draw_tracks(frame, tracks_arr)
+	# pf.draw_tracks(frame, tracks_arr)
 	# show the frame to our screen
 	cv2.imshow("frame", frame)
 	cv2.imshow("mask", mask)
