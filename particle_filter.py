@@ -130,3 +130,13 @@ def calcColorProb(frame, s_temp, x_temp):
 
 	d_prom = (d_sup**2 + d_inf**2) / 2
 	return math.exp(-1*lambd*d_prom)
+
+def calcMotionProb(frame, s_temp, x_temp):
+	
+	std_dev = 0.5
+	dist.euclidean(x_temp.p, s_temp.q)
+
+	first_factor = 1 / (std_dev * (math.pi**(0.5)))
+	second_factor = math.exp(-1 * (dist.euclidean(s_temp.q, x_temp.p)**2) / (std_dev**2))
+
+	return first_factor * second_factor

@@ -129,14 +129,16 @@ while True:
 
 	g = {}
 	f = {}
-	p_color = {}
+	p = {}
 
 	for x_temp in tracks_arr:
 		# Kalman filter prediction
 		for s_temp in pparticles_set:
 			if s_temp.isNearby(x_temp):
-				p_color[(s_temp, x_temp)] = pf.calcColorProb(frame, s_temp, x_temp)
-				print p_color[(s_temp, x_temp)]
+				# Likelihood model
+				p_color = pf.calcColorProb(frame, s_temp, x_temp)
+				p_motion = pf.calcMotionProb(frame, s_temp, x_temp)
+				p[(s_temp, x_temp)] = p_color * p_motion
 
 				f[x_temp] = s_temp
 				g[s_temp] = x_temp
