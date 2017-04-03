@@ -6,8 +6,8 @@ import math
 import cv2
 
 # Particle's box size
-_BOX_WIDTH = 3
-_BOX_HEIGHT = 6
+_BOX_WIDTH = 2
+_BOX_HEIGHT = 4
 
 # numbers of bins per channel
 _CH = 10
@@ -18,6 +18,10 @@ _CV = 5
 _R_MAX = 12
 
 _SHOULDER_WIDTH = 1
+
+_DIF_T = 1.0 / 30
+
+_BUFFER_TRACK = 64
 
 class Particle:
 
@@ -50,7 +54,7 @@ class Particle:
 
 class Track:
 
-	def __init__(self, y, x, v = 0, R = None):
+	def __init__(self, y, x, v = (0,0), R = None):
 		self.p = (x, y)
 		self.v = v
 		self.R = R
@@ -71,6 +75,35 @@ class Track:
 
 		# Testing purpose
 		# print "3D histogram shape: %s, with %d values" % (ref_hist.shape, ref_hist.flatten().shape[0])
+
+	def predict(self):
+		ft = np.array([[1, _DIF_T], [0, 1]])
+		xt_1 = np.array([[self.p[0], self.p[1]], [self.v[0], self.v[1]]])
+
+		cov = 25
+		Q_1 = [_DIF_T**4 / 4 * cov, _DIF_T**3 / 2 * cov]
+		Q_2 = [_DIF_T**3 / 2 * cov, _DIF_T**2 * cov]
+
+		Q = np.array([Q_1, Q_2])
+
+		dif_product = np.dot(ft, xt_1)
+		noise_acc = np.random.multivariate_normal([0, 0], Q)
+
+		pred_state = np.add(dif_product, noise_acc)
+
+		old_p = (self.p[0], self.p[1])
+
+		self.p = (int(round(pred_state[0,0])), int(round(pred_state[0,1])))
+		self.v = (pred_state[1,0], pred_state[1,1])
+
+	def getNearbyParticles(self, particles_matrix):
+		x = self.p[0] - _R_MAX/4
+		y = self.p[1] - _R_MAX/2
+		w = _R_MAX / 2
+		h = _R_MAX
+
+		return findInnerParticles(particles_matrix, x, y, w, h)
+
 
 def init_particles(frame):
 	rows, columns, channels = frame.shape

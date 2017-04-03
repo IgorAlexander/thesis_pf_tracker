@@ -31,7 +31,7 @@ redLower1 = (0, 96, 6)
 redUpper1 = (10, 255, 255)
 redLower2 = (160, 96, 6)
 redUpper2 = (179, 255, 255)
-pts = deque(maxlen=args["buffer"])
+track_pts = {}
 
 first_frame = True
 particles_matrix = []
@@ -101,7 +101,7 @@ while True:
 			x,y,w,h = cv2.boundingRect(cnt)
 
 			# only proceed if the radius meets a minimum size
-			if h > 1 and h < 30 and w > 1 and w < 20 and y > 40:
+			if h > 1 and h < 30 and w > 1 and w < 20 and y > 20:
 
 				M = cv2.moments(cnt)
 				center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
@@ -114,6 +114,8 @@ while True:
 					track_tmp.assignRefHistogram(frame, x, y, w, h, player_count)
 					tracks_arr.append(track_tmp)
 					player_count = player_count + 1
+					track_pts[track_tmp] = deque(maxlen=pf._BUFFER_TRACK)
+					track_pts[track_tmp].appendleft(center)
 
 				pparticles_arr.extend(pf.findInnerParticles(particles_matrix, x, y, w, h))
 
@@ -139,16 +141,35 @@ while True:
 
 	for x_temp in tracks_arr:
 
+		x_temp.predict();
+
 		# Kalman filter prediction
 		for s_temp in pparticles_set:
 			if s_temp.isNearby(x_temp):
 				# Likelihood model
-				p_color = pf.calcColorProb(frame, s_temp, x_temp)
+				p_color = pf.calcColorProb(frame, s_temp, x_temp)				
 				p_motion = pf.calcMotionProb(frame, s_temp, x_temp)
 				p[(s_temp, x_temp)] = p_color * p_motion
 
 				f[x_temp].append(s_temp)
 				g[s_temp].append(x_temp)
+
+	for x_temp in tracks_arr:
+		if len(f[x_temp]) == 0:
+			nearby_particles = x_temp.getNearbyParticles(particles_matrix)
+			pparticles_set.update(nearby_particles)
+
+			for s_temp in nearby_particles:
+				p_color = pf.calcColorProb(frame, s_temp, x_temp)
+				p_motion = pf.calcMotionProb(frame, s_temp, x_temp)
+				p[(s_temp, x_temp)] = p_color * p_motion
+
+				if s_temp not in g:
+					g[s_temp] = []
+
+				f[x_temp].append(s_temp)
+				g[s_temp].append(x_temp)
+
 
 	for s_temp in pparticles_set:
 		if len(g[s_temp]) > 0:
@@ -179,12 +200,24 @@ while True:
 			old_p = (x_temp.p[0], x_temp.p[1])			
 			
 			x_temp.p = (int(round(p_obs[0] + x_noise)), int(round(p_obs[1] + y_noise)))
+			track_pts[x_temp].appendleft(x_temp.p)
 
-			print str(old_p) + "vs" + str(x_temp.p)
+			for i in xrange(1, len(track_pts[x_temp])):
+				# if either of the tracked points are None, ignore
+				# them
+				if track_pts[x_temp][i - 1] is None or track_pts[x_temp][i] is None:
+					continue
+		 
+				# otherwise, compute the thickness of the line and
+				# draw the connecting lines
+				thickness = int(np.sqrt(pf._BUFFER_TRACK / float(i + 1)) * 1)
+				cv2.line(frame, track_pts[x_temp][i - 1], track_pts[x_temp][i], (0, 0, 255), thickness)
+
+			#print str(old_p) + "vs" + str(x_temp.p)
 
 	pf.draw_pos_particles(frame, pparticles_set)
 	# pf.draw_particles(frame, particles_matrix)
-	# pf.draw_tracks(frame, tracks_arr)
+	pf.draw_tracks(frame, tracks_arr)
 	# show the frame to our screen
 	cv2.imshow("frame", frame)
 	cv2.imshow("mask", mask)
