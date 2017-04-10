@@ -37,6 +37,8 @@ first_frame = True
 particles_matrix = []
 tracks_arr = []
 
+n_frame = 1
+
 # if a video path was not supplied, grab the reference
 # to the webcam
 if not args.get("video", False):
@@ -89,7 +91,6 @@ while True:
 
 	pparticles_arr = []
 
-
 	# only proceed if at least one contour was found
 	if len(cnts) > 0:
 		# find the largest contour in the mask, then use
@@ -116,6 +117,11 @@ while True:
 					player_count = player_count + 1
 					track_pts[track_tmp] = deque(maxlen=pf._BUFFER_TRACK)
 					track_pts[track_tmp].appendleft(center)
+				else:
+					if n_frame % pf._R_UPDATE_RATE == 0:
+						inner_track = pf.findInnerTrack(tracks_arr, x, y, w, h)
+						if inner_track != None:
+							inner_track.assignRefHistogram(frame, x, y, w, h, player_count)
 
 				pparticles_arr.extend(pf.findInnerParticles(particles_matrix, x, y, w, h))
 
@@ -226,6 +232,8 @@ while True:
 	# if the 'q' key is pressed, stop the loop
 	if key == ord("q"):
 		break
+
+	n_frame = n_frame + 1
 
 # cleanup the camera and close any open windows
 camera.release()

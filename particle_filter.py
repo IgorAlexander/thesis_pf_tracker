@@ -23,6 +23,8 @@ _DIF_T = 1.0 / 30
 
 _BUFFER_TRACK = 64
 
+_R_UPDATE_RATE = 150
+
 class Particle:
 
 	def __init__(self, weight, y, x, hist_sup = None, hist_inf = None):
@@ -59,6 +61,9 @@ class Track:
 		self.v = v
 		self.R = R
 
+	def update_center(self, x, y):
+		self.p = (x, y)
+		
 	def assignRefHistogram(self, frame, x, y, w, h, i):
 		# Extract region of interest
 		roi = frame[y:y+h, x:x+w]
@@ -153,6 +158,22 @@ def findInnerParticles(particles_matrix, x, y, w, h):
 
 	return inner_particles
 
+# Return inner track if there are only one
+# otherwise it return None
+
+def findInnerTrack(tracks_arr, x, y, w, h):
+
+	inner_tracks = []
+	
+	for track in tracks_arr:
+		t_x, t_y = track.p
+		if t_x >= x and t_x <= x + w and t_y >= y and t_y <= y + h:
+			inner_tracks.append(track)
+	
+	if len(inner_tracks) == 1:
+		return inner_tracks[0]
+	else:
+		return None
 
 def calcColorProb(frame, s_temp, x_temp):
 	
