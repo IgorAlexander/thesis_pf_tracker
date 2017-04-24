@@ -4,6 +4,7 @@
 
 # import the necessary packages
 from collections import deque
+from imutils.video import VideoStream
 import numpy as np
 import argparse
 import imutils
@@ -36,6 +37,9 @@ track_pts = {}
 first_frame = True
 particles_matrix = []
 tracks_arr = []
+
+writer = None
+fourcc = cv2.VideoWriter_fourcc(*"MJPG")
 
 n_frame = 1
 
@@ -118,10 +122,11 @@ while True:
 					track_pts[track_tmp] = deque(maxlen=pf._BUFFER_TRACK)
 					track_pts[track_tmp].appendleft(center)
 				else:
-					if n_frame % pf._R_UPDATE_RATE == 0:
-						inner_track = pf.findInnerTrack(tracks_arr, x, y, w, h)
-						if inner_track != None:
-							inner_track.assignRefHistogram(frame, x, y, w, h, player_count)
+					inner_track = pf.findInnerTrack(tracks_arr, x, y, w, h)
+					if inner_track != None:
+						cv2.putText(frame, str(inner_track.number), (x + 2, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+						if n_frame % pf._R_UPDATE_RATE == 0:
+							inner_track.assignRefHistogram(frame, x, y, w, h, player_count)						
 
 				pparticles_arr.extend(pf.findInnerParticles(particles_matrix, x, y, w, h))
 
@@ -227,6 +232,13 @@ while True:
 	# show the frame to our screen
 	cv2.imshow("frame", frame)
 	cv2.imshow("mask", mask)
+
+	if writer is None:
+		(h, w) = frame.shape[:2]
+		writer = cv2.VideoWriter("output.avi", fourcc, 20, (w, h), True)
+
+	writer.write(frame)
+
 	key = cv2.waitKey(1) & 0xFF
 
 	# if the 'q' key is pressed, stop the loop
@@ -237,4 +249,5 @@ while True:
 
 # cleanup the camera and close any open windows
 camera.release()
+writer.release()
 cv2.destroyAllWindows()

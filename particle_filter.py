@@ -15,11 +15,11 @@ _CS = 5
 _CV = 5
 
 # max distance between a track and particle
-_R_MAX = 12
+_R_MAX = 96
 
 _SHOULDER_WIDTH = 1
 
-_DIF_T = 1.0 / 30
+_DIF_T = 1.0 / 10
 
 _BUFFER_TRACK = 64
 
@@ -56,10 +56,14 @@ class Particle:
 
 class Track:
 
+	track_number = 0
+
 	def __init__(self, y, x, v = (0,0), R = None):
 		self.p = (x, y)
 		self.v = v
 		self.R = R
+		Track.track_number = Track.track_number + 1
+		self.number = int(Track.track_number)
 
 	def update_center(self, x, y):
 		self.p = (x, y)
@@ -102,9 +106,9 @@ class Track:
 		self.v = (pred_state[1,0], pred_state[1,1])
 
 	def getNearbyParticles(self, particles_matrix):
-		x = self.p[0] - _R_MAX/4
+		x = self.p[0] - _R_MAX/2
 		y = self.p[1] - _R_MAX/2
-		w = _R_MAX / 2
+		w = _R_MAX
 		h = _R_MAX
 
 		return findInnerParticles(particles_matrix, x, y, w, h)
@@ -189,7 +193,7 @@ def calcColorProb(frame, s_temp, x_temp):
 
 def calcMotionProb(frame, s_temp, x_temp):
 	
-	std_dev = 5
+	std_dev = 10
 	dist.euclidean(x_temp.p, s_temp.q)
 
 	first_factor = 1 / (std_dev * (math.pi**(0.5)))
