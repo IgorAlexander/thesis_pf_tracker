@@ -6,8 +6,8 @@ import math
 import cv2
 
 # Particle's box size
-_BOX_WIDTH = 2
-_BOX_HEIGHT = 4
+_BOX_WIDTH = 4
+_BOX_HEIGHT = 8
 
 # numbers of bins per channel
 _CH = 10
@@ -58,10 +58,11 @@ class Track:
 
 	track_number = 0
 
-	def __init__(self, y, x, v = (0,0), R = None):
+	def __init__(self, y, x, v = (0,0), R = None, team = 0):
 		self.p = (x, y)
 		self.v = v
 		self.R = R
+		self.team = team
 		Track.track_number = Track.track_number + 1
 		self.number = int(Track.track_number)
 
@@ -165,14 +166,15 @@ def findInnerParticles(particles_matrix, x, y, w, h):
 # Return inner track if there are only one
 # otherwise it return None
 
-def findInnerTrack(tracks_arr, x, y, w, h):
+def findInnerTrack(tracks_arr, x, y, w, h, team):
 
 	inner_tracks = []
 	
 	for track in tracks_arr:
 		t_x, t_y = track.p
-		if t_x >= x and t_x <= x + w and t_y >= y and t_y <= y + h:
-			inner_tracks.append(track)
+		if t_x >= x - 1 and t_x <= x + w + 1 and t_y >= y - 1 and t_y <= y + h + 1:
+			if track.team == team:
+				inner_tracks.append(track)
 	
 	if len(inner_tracks) == 1:
 		return inner_tracks[0]
@@ -181,7 +183,7 @@ def findInnerTrack(tracks_arr, x, y, w, h):
 
 def calcColorProb(frame, s_temp, x_temp):
 	
-	lambd = 20
+	lambd = 2
 
 	s_temp.obtainHistogram(frame)
 
@@ -193,7 +195,7 @@ def calcColorProb(frame, s_temp, x_temp):
 
 def calcMotionProb(frame, s_temp, x_temp):
 	
-	std_dev = 10
+	std_dev = 15
 	dist.euclidean(x_temp.p, s_temp.q)
 
 	first_factor = 1 / (std_dev * (math.pi**(0.5)))

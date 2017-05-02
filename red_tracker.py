@@ -22,6 +22,12 @@ args = vars(ap.parse_args())
 # define the lower and upper boundaries of the "green"
 # ball in the HSV color space, then initialize the
 # list of tracked points
+whiteLower = (0, 0, 180)
+whiteUpper = (180, 26, 255)
+
+blueLower = (115, 96, 26)
+blueUpper = (130, 255, 255)
+
 greenLower = (38, 96, 6)
 greenUpper = (64, 255, 255)
 
@@ -74,27 +80,35 @@ while True:
 	# construct a mask for the color "green", then perform
 	# a series of dilations and erosions to remove any small
 	# blobs left in the mask
-	mask1 = cv2.inRange(hsv, redLower1, redUpper1)
-	mask2 = cv2.inRange(hsv, redLower2, redUpper2)
+	#mask1 = cv2.inRange(hsv, redLower1, redUpper1)
+	#mask2 = cv2.inRange(hsv, redLower2, redUpper2)
 
-	mask = cv2.addWeighted(mask1, 1.0, mask2, 1.0, 0.0)
+	#mask = cv2.addWeighted(mask1, 1.0, mask2, 1.0, 0.0)
 
-	# mask3 = cv2.inRange(hsv, yellowLower, yellowUpper)
-	# 
-	# mask = cv2.addWeighted(mask, 1.0, mask3, 1.0, 0.0)
+	mask1 = cv2.inRange(hsv, whiteLower, whiteUpper)
+	mask2 = cv2.inRange(hsv, blueLower, blueUpper)
+
+	# mask = cv2.addWeighted(mask1, 1.0, mask2, 1.0, 0.0)
 
 	# ret,mask = cv2.threshold(mask,127,255,cv2.THRESH_BINARY_INV)
-	mask = cv2.erode(mask, None, iterations=1)
-	mask = cv2.dilate(mask, None, iterations=1)
+	# mask = cv2.erode(mask, None, iterations=1)
+	mask1 = cv2.dilate(mask1, None, iterations=6)
+	mask1 = cv2.erode(mask1, None, iterations=2)
+
+	mask2 = cv2.dilate(mask2, None, iterations=6)
+	mask2 = cv2.erode(mask2, None, iterations=2)
 
 	#DETECTION
 
-	cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,
+	cnts = cv2.findContours(mask1.copy(), cv2.RETR_EXTERNAL,
+		cv2.CHAIN_APPROX_SIMPLE)[-2]
+	cnts2 = cv2.findContours(mask2.copy(), cv2.RETR_EXTERNAL,
 		cv2.CHAIN_APPROX_SIMPLE)[-2]
 	center = None
 
 	pparticles_arr = []
 
+	# First TEAM
 	# only proceed if at least one contour was found
 	if len(cnts) > 0:
 		# find the largest contour in the mask, then use
@@ -106,7 +120,7 @@ while True:
 			x,y,w,h = cv2.boundingRect(cnt)
 
 			# only proceed if the radius meets a minimum size
-			if h > 1 and h < 30 and w > 1 and w < 20 and y > 20:
+			if h > 12 and h < 100 and w > 5 and w < 40 and y > 30:
 
 				M = cv2.moments(cnt)
 				center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
@@ -115,15 +129,15 @@ while True:
 
 				# Init tracks
 				if first_frame:
-					track_tmp = pf.Track(center[1], center[0])
+					track_tmp = pf.Track(center[1], center[0], team = 1)
 					track_tmp.assignRefHistogram(frame, x, y, w, h, player_count)
 					tracks_arr.append(track_tmp)
 					player_count = player_count + 1
 					track_pts[track_tmp] = deque(maxlen=pf._BUFFER_TRACK)
-					track_pts[track_tmp].appendleft(center)
 				else:
-					inner_track = pf.findInnerTrack(tracks_arr, x, y, w, h)
+					inner_track = pf.findInnerTrack(tracks_arr, x, y, w, h, 1)
 					if inner_track != None:
+						inner_track.update_center(center[0], center[1])
 						cv2.putText(frame, str(inner_track.number), (x + 2, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 						if n_frame % pf._R_UPDATE_RATE == 0:
 							inner_track.assignRefHistogram(frame, x, y, w, h, player_count)						
@@ -131,12 +145,50 @@ while True:
 				pparticles_arr.extend(pf.findInnerParticles(particles_matrix, x, y, w, h))
 
 				cv2.rectangle(frame, (int(x), int(y)), (int(x)+int(w), int(y)+int(h)),
-					(0, 255, 255), 2)
+					(255, 255, 255), 2)
+				cv2.circle(frame, center, 2, (0, 0, 255), -1)
+
+	if len(cnts2) > 0:
+		# find the largest contour in the mask, then use
+		# it to compute the minimum enclosing circle and
+		# centroid
+		for cnt in cnts2:
+
+			x,y,w,h = cv2.boundingRect(cnt)
+
+			# only proceed if the radius meets a minimum size
+			if h > 12 and h < 100 and w > 5 and w < 40 and y > 30:
+
+				M = cv2.moments(cnt)
+				center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+				# draw the circle and centroid on the frame,
+				# then update the list of tracked points
+
+				# Init tracks
+				if first_frame:
+					track_tmp = pf.Track(center[1], center[0], team = 2)
+					track_tmp.assignRefHistogram(frame, x, y, w, h, player_count)
+					tracks_arr.append(track_tmp)
+					player_count = player_count + 1
+					track_pts[track_tmp] = deque(maxlen=pf._BUFFER_TRACK)
+				else:
+					inner_track = pf.findInnerTrack(tracks_arr, x, y, w, h, 2)
+					if inner_track != None:
+						inner_track.update_center(center[0], center[1])
+						cv2.putText(frame, str(inner_track.number), (x + 2, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+						if n_frame % pf._R_UPDATE_RATE == 0:
+							inner_track.assignRefHistogram(frame, x, y, w, h, player_count)						
+
+				pparticles_arr.extend(pf.findInnerParticles(particles_matrix, x, y, w, h))
+
+				cv2.rectangle(frame, (int(x), int(y)), (int(x)+int(w), int(y)+int(h)),
+					(255, 0, 0), 2)
 				cv2.circle(frame, center, 2, (0, 0, 255), -1)
 
 		first_frame = False
 
 	pparticles_set = set(pparticles_arr)
+	pf.draw_tracks(frame, tracks_arr)
 
 	# Iteration of the particle filter model
 
@@ -148,7 +200,21 @@ while True:
 		g[s_temp] = []
 
 	for x_temp in tracks_arr:
+		# Initialize f
 		f[x_temp] = []
+
+		# Line tracks
+		track_pts[x_temp].appendleft(x_temp.p)
+
+		for i in xrange(1, len(track_pts[x_temp])):
+			# if either of the tracked points are None, ignore
+			# them
+			if track_pts[x_temp][i - 1] is None or track_pts[x_temp][i] is None:
+				continue
+			# otherwise, compute the thickness of the line and
+			# draw the connecting lines
+			thickness = int(np.sqrt(pf._BUFFER_TRACK / float(i + 1)) * 1)
+			cv2.line(frame, track_pts[x_temp][i - 1], track_pts[x_temp][i], (0, 0, 255), thickness)
 
 	for x_temp in tracks_arr:
 
@@ -161,6 +227,7 @@ while True:
 				p_color = pf.calcColorProb(frame, s_temp, x_temp)				
 				p_motion = pf.calcMotionProb(frame, s_temp, x_temp)
 				p[(s_temp, x_temp)] = p_color * p_motion
+
 
 				f[x_temp].append(s_temp)
 				g[s_temp].append(x_temp)
@@ -211,27 +278,16 @@ while True:
 			old_p = (x_temp.p[0], x_temp.p[1])			
 			
 			x_temp.p = (int(round(p_obs[0] + x_noise)), int(round(p_obs[1] + y_noise)))
-			track_pts[x_temp].appendleft(x_temp.p)
-
-			for i in xrange(1, len(track_pts[x_temp])):
-				# if either of the tracked points are None, ignore
-				# them
-				if track_pts[x_temp][i - 1] is None or track_pts[x_temp][i] is None:
-					continue
-		 
-				# otherwise, compute the thickness of the line and
-				# draw the connecting lines
-				thickness = int(np.sqrt(pf._BUFFER_TRACK / float(i + 1)) * 1)
-				cv2.line(frame, track_pts[x_temp][i - 1], track_pts[x_temp][i], (0, 0, 255), thickness)
 
 			#print str(old_p) + "vs" + str(x_temp.p)
 
-	pf.draw_pos_particles(frame, pparticles_set)
+	# pf.draw_pos_particles(frame, pparticles_set)
 	# pf.draw_particles(frame, particles_matrix)
-	pf.draw_tracks(frame, tracks_arr)
+	#	pf.draw_tracks(frame, tracks_arr)
 	# show the frame to our screen
 	cv2.imshow("frame", frame)
-	cv2.imshow("mask", mask)
+	cv2.imshow("mask1", mask1)
+	cv2.imshow("mask2", mask2)
 
 	if writer is None:
 		(h, w) = frame.shape[:2]
